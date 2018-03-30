@@ -4,7 +4,7 @@ This is a simulation that can generate high-throughput sequencing (HTS) data (BA
 
 ## Prerequisites
 
-* [wgsim](https://github.com/lh3/wgsim) simulation 
+* [wgsim](https://github.com/lh3/wgsim) 
 * [bwa](https://github.com/lh3/bwa) 
 * [samtools](https://github.com/samtools/) 
 
