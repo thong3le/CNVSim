@@ -12,17 +12,26 @@ def reference(filename, chr):
 	"""
 	out = []
 	ref = open(filename)
+	count = 0
+	print("Copying chromesome {} from {}".format(chr, filename))
 	while True:
+		count += 1
+		if count % 10000000 == 0:
+			print("\treading line {:10} ...".format(count))
 		line = ref.readline().strip()
-		if line == '>' + chr:
+		if line == '>' + chr or line == '':
 			break
 	if len(line) == 0:
 		return []
 	while True:
+		count += 1
+		if count % 10000000 == 0:
+			print("\tReading line {} ...".format(count))
 		line = ref.readline().strip()
-		if line.startWith('>'):
+		if line.startswith('>') or line == '':
 			break
 		out.append(line)
+	print("Completed. There are {} lines in chromosome {}.".format(len(out), chr))
 	return out
 
 def outfile_fa(filename, ref1, ref2):
@@ -86,9 +95,43 @@ def quality(ref):
 	Ncount = sum([line.count('N') + line.count('n') for line in ref])
 	return 1.0 - 1.0 * Ncount / size
 
-def generate_cnv(ref, num_cnv=2000):
+def generate_cnv(ref, num_cnv=1000):
 	svtype = ['del', 'inv', 'invDup', 'interDup', 'tandem']
-	svtype = 500*['del'] + 250 * ['inv'] + 250 * ['invDup'] + 250 * ['interDup'] + 250 * ['tandem']
+	svtypes = [(random.choice(svtype), random.randint(10, 200)) for _ in range(num_cnv)]
+	ref_size = len(ref)
+	bin_size = ref_size//num_cnv
+	print("bin_size is {}".format(bin_size))
+	offset = 1000
+	start_positions = [random.randint(i*bin_size + offset, (i+1)*bin_size - offset) for i in range(num_cnv)]
+	SVs = []
+	for i in range(num_cnv):
+		t, n = svtypes[i]
+		l = start_positions[i]
+		r = l + n
+		isHomogeneous = random.choice([True, False])
+		if quality(ref[l:r]) < 0.9:
+			continue
+		if t == 'del':
+			SVs.append(CNV(l, r, isHomogeneous, t))
+		elif t == 'inv':
+			SVs.append(CNV(l, r, isHomogeneous, t, True, 0))
+		elif t == 'invDup':
+			side = random.choice([-1,1])
+			jump_length = side * ((r-l) + random.randint(100, 1000))
+			SVs.append(CNV(l, r, isHomogeneous, 'dup', True, jump_length))
+		elif t == 'interDup':
+			side = random.choice([-1,1])
+			jump_length = side * ((r-l) + random.randint(100, 1000))
+			SVs.append(CNV(l, r, isHomogeneous, 'dup', False, jump_length))
+		elif t == 'tandem':
+			jump_length = (r-l)
+			SVs.append(CNV(l, r, isHomogeneous, 'dup', False, jump_length))
+	print("Number of SVs actually simulated: {}".format(len(SVs)))
+	return SVs
+
+def generate_cnv_specific(ref,deleltion=500,inversion=250,invdup=250,interdup=250,tandem=250):
+	svtype = ['del', 'inv', 'invDup', 'interDup', 'tandem']
+	svtype = deleltion * ['del'] + inversion * ['inv'] + invdup * ['invDup'] + interdup * ['interDup'] + tandem * ['tandem']
 	num_cnv = len(svtype)
 	#random.shuffle(svtype)  
 	#svtypes = [(random.choice(svtype), random.randint(10, 200)) for _ in range(num_cnv)]
@@ -225,7 +268,7 @@ def main():
 	if len(ref) == 0:
 		print("There is no chromosome {} in {}".format(args.chr, args.ref))
 		return
-	print("There are {} lines in chromosome {}".format(len(ref), args.chr))
+
 	ref_line_length = len(ref[0])
 	SVs = generate_cnv(ref, args.n)
 	ref1, ref2 = generate_fa(ref, SVs)
