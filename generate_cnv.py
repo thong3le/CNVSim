@@ -1,22 +1,29 @@
 from __future__ import print_function
+import argparse
 import random
 import sys
 import os
 import time
 
-def reference(filename):
+def reference(filename, chr):
 	"""
 		filename: the name of reference genome fasta file
 		only read the chr1
 	"""
-	chr1 = []
+	out = []
 	ref = open(filename)
-	for line in ref:
-		if not line.startswith('>'):
-			chr1.append(line.strip())
-		elif '1' not in line:
-			return chr1
-	return chr1
+	while True:
+		line = ref.readline().strip()
+		if line == '>' + chr:
+			break
+	if len(line) == 0:
+		return []
+	while True:
+		line = ref.readline().strip()
+		if line.startWith('>'):
+			break
+		out.append(line)
+	return out
 
 def outfile_fa(filename, ref1, ref2):
 	"""
@@ -204,60 +211,36 @@ def build_bam_file(ref, fasta, basename, coverage):
 	os.system(command)
 	os.system("rm {} {} {} {}".format(fastq1, fastq2, unsorted_bam, samfile))
 
-
 def main():
-	def usage():
-		print(sys.argv)
-		print("Usage: python generate_sv.py -r ref_genome -n num_cnv -c coverage [-o output_dir]")
-		print("\n\n\t-r\tfilename, reference genome (fasta file) i.e. hg38.fa")
-		print("\t-n\tinteger, how many CNVs do you want to generate? i.e. 500")
-		print("\t-c\t integer,  what the coverage? i.e. 30")
-		print("\t-o\t output directory i.e. all generated files will be stored in this directory")
-	
-	options = ["-c","-n","-r"]
-	if len(sys.argv) != 7 and len(sys.argv) != 9 and sys.argv[1] not in options and sys.argv[3] not in options and sys.argv[5] not in options:
-		usage()
-		return
-	elif sorted([sys.argv[1], sys.argv[3], sys.argv[5]]) != options:
-		usage()
-		return
-	elif len(sys.argv) == 9 and sys.argv[7] != "-o":
-		usage()
-		return
-	else:
-		para = {}
-		para[sys.argv[1]] = sys.argv[2]
-		para[sys.argv[3]] = sys.argv[4]
-		para[sys.argv[5]] = sys.argv[6] 
-		if len(sys.argv) == 9:
-			para[sys.argv[7]] = sys.argv[8].strip('/') + '/'
-		else:
-			para["-o"] = "./"
-		ref_file = para["-r"]
-		num_cnv = int(para["-n"])
-		coverage = int(para["-c"])
-		output_prefix = para["-o"]
+	parser = argparse.ArgumentParser(description="CNVSim: simulating copy number variations in a exactly one chromesome of the given reference genome. Output is in the BAM file format.")
+	parser.add_argument("ref", help="reference genome (fasta file), e.g. hg38.fa")
+	parser.add_argument("n", type=int, help="number of variations, e.g. 1200")
+	parser.add_argument("c", type=int, help="sequencing coverage, e.g. 10")
+	parser.add_argument("--out", help="output directory, default is the current directory", default="./")
+	parser.add_argument("--chr", help="name of the chromosome that will contain the CNVs, default = 'chr1'", default='chr1')
+	args = parser.parse_args()
 
-	ref = reference(ref_file)
-	print(len(ref))
-	ref_size = len(ref)
+	ref = reference(args.ref, args.chr)
+
+	if len(ref) == 0:
+		print("There is no chromosome {} in {}".format(args.chr, args.ref))
+		return
+	print("There are {} lines in chromosome {}".format(len(ref), args.chr))
 	ref_line_length = len(ref[0])
-	SVs = generate_cnv(ref, num_cnv)
+	SVs = generate_cnv(ref, args.n)
 	ref1, ref2 = generate_fa(ref, SVs)
 	print("Writing fasta data to files.")
 
-	basename = output_prefix + "cnv_{}".format(num_cnv)
+	basename = args.out + "/cnv_{}".format(args.n)
 	fasta = basename + "_ref.fa"
 	outfile_fa(fasta, ref1, ref2)
 	outfile_pos(basename + "_pos.txt", SVs, ref_line_length)
 
-	build_bam_file(ref_file, fasta, basename, coverage)
+	build_bam_file(args.ref, fasta, basename, args.c)
 
 if __name__ == '__main__':
 	start = time.time()
-	#main()
-	for i in range(3, 7):
-		coverage = i * 10
-		build_bam_file("/home/fhormozd/thong/ReferenceGenomes/hg37/human_g1k_v37_gatk.fasta", "cnv1200-10x/cnv_1200_ref.fa", "cnv1200-{}x/cnv_1200".format(coverage), coverage)
+	main()
+	#build_bam_file("/home/fhormozd/thong/ReferenceGenomes/hg37/human_g1k_v37_gatk.fasta", "cnv1200-10x/cnv_1200_ref.fa", "cnv1200-{}x/cnv_1200".format(coverage), coverage)
 	end = time.time()
 	print("Simulation time: {} seconds".format(end-start))
