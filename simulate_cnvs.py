@@ -7,8 +7,11 @@ import time
 
 def reference(filename, chr):
 	"""
-		filename: the name of reference genome fasta file
-		only read the chr1
+		Input:
+			filename: the name of reference genome fasta file
+			chr: name of the chromosome
+		Output: 
+			list of strings for the given chromosome.
 	"""
 	out = []
 	ref = open(filename)
@@ -37,7 +40,7 @@ def reference(filename, chr):
 def outfile_fa(filename, ref1, ref2):
 	"""
 		filename: String  -> the output fasta filename
-		ref: list of String
+		ref1, ref2: list of String
 	"""
 	f = open(filename, 'w')
 	f.write('>chr1_1\n')
@@ -95,6 +98,7 @@ def quality(ref):
 	Ncount = sum([line.count('N') + line.count('n') for line in ref])
 	return 1.0 - 1.0 * Ncount / size
 
+# randomly generated 'num_cnv' SVs
 def generate_cnv(ref, num_cnv=1000):
 	svtype = ['del', 'inv', 'invDup', 'interDup', 'tandem']
 	svtypes = [(random.choice(svtype), random.randint(10, 200)) for _ in range(num_cnv)]
@@ -129,6 +133,7 @@ def generate_cnv(ref, num_cnv=1000):
 	print("Number of SVs actually simulated: {}".format(len(SVs)))
 	return SVs
 
+# how many SVs for each type?
 def generate_cnv_specific(ref,deleltion=500,inversion=250,invdup=250,interdup=250,tandem=250):
 	svtype = ['del', 'inv', 'invDup', 'interDup', 'tandem']
 	svtype = deleltion * ['del'] + inversion * ['inv'] + invdup * ['invDup'] + interdup * ['interDup'] + tandem * ['tandem']
